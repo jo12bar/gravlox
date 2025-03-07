@@ -25,6 +25,11 @@ impl Token {
             line,
         }
     }
+
+    #[inline]
+    pub fn lexeme(&self) -> &str {
+        &self.lexeme
+    }
 }
 
 impl fmt::Debug for Token {

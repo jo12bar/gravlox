@@ -1,13 +1,15 @@
 use std::fmt;
+use std::rc::Rc;
 
 use crate::LineNum;
 use crate::literal::Literal;
 use crate::token_type::TokenType;
 
+#[derive(Debug, Clone)]
 pub struct Token {
     typ: TokenType,
     lexeme: String,
-    literal: Option<Box<dyn Literal>>,
+    literal: Option<Rc<dyn Literal>>,
     line: LineNum,
 }
 
@@ -15,7 +17,7 @@ impl Token {
     pub fn new(
         typ: TokenType,
         lexeme: impl ToString,
-        literal: Option<Box<dyn Literal>>,
+        literal: Option<Rc<dyn Literal>>,
         line: LineNum,
     ) -> Token {
         Token {
@@ -30,16 +32,20 @@ impl Token {
     pub fn lexeme(&self) -> &str {
         &self.lexeme
     }
-}
 
-impl fmt::Debug for Token {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Token")
-            .field("typ", &self.typ)
-            .field("lexeme", &self.lexeme)
-            .field("literal", &self.literal)
-            .field("line", &self.line)
-            .finish()
+    #[inline]
+    pub fn typ(&self) -> TokenType {
+        self.typ
+    }
+
+    #[inline]
+    pub fn literal(&self) -> Option<&Rc<dyn Literal>> {
+        self.literal.as_ref()
+    }
+
+    #[inline]
+    pub fn line(&self) -> LineNum {
+        self.line
     }
 }
 

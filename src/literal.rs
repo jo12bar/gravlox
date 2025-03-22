@@ -6,3 +6,4 @@ impl Literal for &str {}
 impl Literal for String {}
 
 impl Literal for f64 {}
+impl Literal for bool {}

@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use crate::{literal::Literal, token::Token};
 
 #[allow(rustdoc::invalid_rust_codeblocks)]
@@ -6,22 +8,20 @@ use crate::{literal::Literal, token::Token};
 /// Grammar, using the book's version of BNF:
 ///
 /// ```ignore
-/// expression     → literal
-///                | unary
-///                | binary
-///                | grouping ;
-///
-/// literal        → NUMBER | STRING | "true" | "false" | "nil" ;
-/// grouping       → "(" expression ")" ;
-/// unary          → ( "-" | "!" ) expression ;
-/// binary         → expression operator expression ;
-/// operator       → "==" | "!=" | "<" | "<=" | ">" | ">="
-///                | "+"  | "-"  | "*" | "/" ;
+/// expression     → equality ;
+/// equality       → comparison ( ( "!=" | "==" ) comparison )* ;
+/// comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
+/// term           → factor ( ( "-" | "+" ) factor )* ;
+/// factor         → unary ( ( "/" | "*" ) unary )* ;
+/// unary          → ( "!" | "-" ) unary
+///                | primary ;
+/// primary        → NUMBER | STRING | "true" | "false" | "nil"
+///                | "(" expression ")" ;
 /// ```
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Expr {
     Grouping(Box<Expr>),
-    Literal(Option<Box<dyn Literal>>),
+    Literal(Option<Rc<dyn Literal>>),
     Unary {
         operator: Token,
         right: Box<Expr>,

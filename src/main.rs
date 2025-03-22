@@ -1,6 +1,7 @@
 mod ast_printer;
 mod expr;
 mod literal;
+mod parser;
 mod scanner;
 mod token;
 mod token_type;
@@ -124,15 +125,35 @@ impl Lox {
     fn run(&mut self, source: &str) {
         let mut scanner = Scanner::new(source);
 
-        // For now, just print the tokens
         scanner.scan_tokens(self);
+        let tokens = scanner.iter_tokens().cloned().collect();
 
-        for token in scanner.iter_tokens() {
-            println!("{token}");
+        let mut parser = parser::Parser::new(tokens);
+        let expression = parser.parse(self);
+
+        // Stop if there was a syntax error
+        if self.had_error {
+            return;
+        }
+
+        let expression = expression.expect("parser should report errors to the Lox interpreter properly so they can be detected and handled in a nice way");
+
+        println!("{}", ast_printer::AstPrinter(&expression).walk_ast());
+    }
+
+    fn token_error(&mut self, token: &token::Token, message: &str) {
+        if token.typ() == token_type::TokenType::Eof {
+            self.report(token.line(), Some("at end"), message);
+        } else {
+            self.report(
+                token.line(),
+                Some(&format!("at '{}'", token.lexeme())),
+                message,
+            );
         }
     }
 
-    fn error(&mut self, line: LineNum, message: &str) {
+    fn error_with_linenum(&mut self, line: LineNum, message: &str) {
         self.report(line, None, message);
     }
 

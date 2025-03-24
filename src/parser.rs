@@ -124,10 +124,34 @@ impl Parser {
     /// Grammar:
     ///
     /// ```ignore
-    /// expression     → equality ;
+    /// expression     → comma ;
     /// ```
     fn expression(&mut self, lox: &mut Lox) -> Result<Expr, ParserError> {
-        self.equality(lox)
+        self.comma(lox)
+    }
+
+    #[allow(rustdoc::invalid_rust_codeblocks)]
+    /// Parse a comma [expression][Expr].
+    ///
+    /// Grammar:
+    ///
+    /// ```ignore
+    /// comma          → equality ( "," equality )* ;
+    /// ```
+    fn comma(&mut self, lox: &mut Lox) -> Result<Expr, ParserError> {
+        let mut expr = self.equality(lox)?;
+
+        while self.match_tokens([TokenType::Comma]) {
+            let operator = self.previous().clone();
+            let right = self.equality(lox)?;
+            expr = Expr::Binary {
+                left: Box::new(expr),
+                operator,
+                right: Box::new(right),
+            };
+        }
+
+        Ok(expr)
     }
 
     #[allow(rustdoc::invalid_rust_codeblocks)]

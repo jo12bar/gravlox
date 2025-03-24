@@ -8,7 +8,8 @@ use crate::{literal::Literal, token::Token};
 /// Grammar, using the book's version of BNF:
 ///
 /// ```ignore
-/// expression     → equality ;
+/// expression     → comma ;
+/// comma          → equality ( "," equality )* ;
 /// equality       → comparison ( ( "!=" | "==" ) comparison )* ;
 /// comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
 /// term           → factor ( ( "-" | "+" ) factor )* ;

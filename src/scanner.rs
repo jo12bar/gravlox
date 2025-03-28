@@ -1,4 +1,3 @@
-use std::rc::Rc;
 use std::sync::LazyLock;
 
 use rustc_hash::FxHashMap;
@@ -180,7 +179,7 @@ impl Scanner {
         let str_value = self
             .get_source_substring(self.start + 1, self.current - 1)
             .to_string();
-        self.add_token_lit(TokenType::String, Some(Rc::new(str_value)));
+        self.add_token_lit(TokenType::String, Some(Box::new(str_value)));
     }
 
     /// Scan a number, like `103` or `0.23034` or `420.69`.
@@ -203,7 +202,7 @@ impl Scanner {
             .get_source_substring(self.start, self.current)
             .parse::<f64>()
             .expect("parsing number should succeed since we already checked its format");
-        self.add_token_lit(TokenType::Number, Some(Rc::new(num)));
+        self.add_token_lit(TokenType::Number, Some(Box::new(num)));
     }
 
     /// Scan an identifier, using C's identifier rules.
@@ -286,7 +285,7 @@ impl Scanner {
         self.add_token_lit(typ, None);
     }
 
-    fn add_token_lit(&mut self, typ: TokenType, literal: Option<Rc<dyn Literal>>) {
+    fn add_token_lit(&mut self, typ: TokenType, literal: Option<Box<dyn Literal>>) {
         let lexeme = self.get_source_substring(self.start, self.current);
         self.tokens
             .push(Token::new(typ, lexeme, literal, self.line));

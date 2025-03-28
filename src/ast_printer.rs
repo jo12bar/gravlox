@@ -83,8 +83,6 @@ impl expr::Visitor<String> for AstPrinter<'_> {
 mod tests {
     use super::*;
 
-    use std::rc::Rc;
-    
     use crate::token::Token;
     use crate::token_type::TokenType;
 
@@ -93,10 +91,10 @@ mod tests {
         let expression = Expr::Binary {
             left: Box::new(Expr::Unary {
                 operator: Token::new(TokenType::Minus, "-", None, 1),
-                right: Box::new(Expr::Literal(Some(Rc::new(123.0)))),
+                right: Box::new(Expr::Literal(Some(Box::new(123.0)))),
             }),
             operator: Token::new(TokenType::Star, "*", None, 1),
-            right: Box::new(Expr::Grouping(Box::new(Expr::Literal(Some(Rc::new(
+            right: Box::new(Expr::Grouping(Box::new(Expr::Literal(Some(Box::new(
                 45.67,
             )))))),
         };

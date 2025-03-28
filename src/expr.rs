@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 use crate::{literal::Literal, token::Token};
 
 #[allow(rustdoc::invalid_rust_codeblocks)]
@@ -22,7 +20,7 @@ use crate::{literal::Literal, token::Token};
 #[derive(Debug, Clone)]
 pub enum Expr {
     Grouping(Box<Expr>),
-    Literal(Option<Rc<dyn Literal>>),
+    Literal(Option<Box<dyn Literal>>),
     Unary {
         operator: Token,
         right: Box<Expr>,

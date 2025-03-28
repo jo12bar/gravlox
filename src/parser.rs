@@ -1,4 +1,4 @@
-use std::{fmt, rc::Rc};
+use std::fmt;
 
 use crate::{Lox, expr::Expr, token::Token, token_type::TokenType};
 
@@ -72,11 +72,7 @@ impl Parser {
         if self.check(token_type) {
             Ok(self.advance())
         } else {
-            Err(ParserError::new_report(
-                self.peek(),
-                err_msg,
-                lox,
-            ))
+            Err(ParserError::new_report(self.peek(), err_msg, lox))
         }
     }
 
@@ -288,17 +284,17 @@ impl Parser {
     /// ```
     fn primary(&mut self, lox: &mut Lox) -> Result<Expr, ParserError> {
         if self.match_tokens([TokenType::False]) {
-            return Ok(Expr::Literal(Some(Rc::new(false))));
+            return Ok(Expr::Literal(Some(Box::new(false))));
         }
         if self.match_tokens([TokenType::True]) {
-            return Ok(Expr::Literal(Some(Rc::new(true))));
+            return Ok(Expr::Literal(Some(Box::new(true))));
         }
         if self.match_tokens([TokenType::Nil]) {
             return Ok(Expr::Literal(None));
         }
 
         if self.match_tokens([TokenType::Number, TokenType::String]) {
-            return Ok(Expr::Literal(self.previous().literal().map(Rc::clone)));
+            return Ok(Expr::Literal(self.previous().literal().cloned()));
         }
 
         if self.match_tokens([TokenType::LeftParen]) {
@@ -307,7 +303,11 @@ impl Parser {
             return Ok(Expr::Grouping(expr));
         }
 
-        Err(ParserError::new_report(self.peek(), "Expect expression.", lox))
+        Err(ParserError::new_report(
+            self.peek(),
+            "Expect expression.",
+            lox,
+        ))
     }
 }
 

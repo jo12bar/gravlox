@@ -1,5 +1,4 @@
 use std::fmt;
-use std::rc::Rc;
 
 use crate::LineNum;
 use crate::literal::Literal;
@@ -9,7 +8,7 @@ use crate::token_type::TokenType;
 pub struct Token {
     typ: TokenType,
     lexeme: String,
-    literal: Option<Rc<dyn Literal>>,
+    literal: Option<Box<dyn Literal>>,
     line: LineNum,
 }
 
@@ -17,7 +16,7 @@ impl Token {
     pub fn new(
         typ: TokenType,
         lexeme: impl ToString,
-        literal: Option<Rc<dyn Literal>>,
+        literal: Option<Box<dyn Literal>>,
         line: LineNum,
     ) -> Token {
         Token {
@@ -39,7 +38,8 @@ impl Token {
     }
 
     #[inline]
-    pub fn literal(&self) -> Option<&Rc<dyn Literal>> {
+    #[allow(clippy::borrowed_box)]
+    pub fn literal(&self) -> Option<&Box<dyn Literal>> {
         self.literal.as_ref()
     }
 

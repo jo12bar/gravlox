@@ -1,13 +1,16 @@
 mod ast_printer;
 mod expr;
+mod interpreter;
 mod literal;
 mod parser;
+mod runtime_error;
 mod scanner;
 mod token;
 mod token_type;
 
 use std::io::{Write, stdin, stdout};
 
+use interpreter::Interpreter;
 use scanner::Scanner;
 
 const HELP: &str = "\
@@ -85,33 +88,42 @@ fn parse_args() -> Result<CliArgs, pico_args::Error> {
     Ok(args)
 }
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 struct Lox {
     had_error: bool,
+    had_runtime_error: bool,
 }
 
 impl Lox {
     fn new() -> Lox {
-        Lox { had_error: false }
+        Lox { had_error: false, had_runtime_error: false }
     }
 
     fn run_file(mut self, path: &std::path::Path) -> Result<(), std::io::Error> {
         let script_content = std::fs::read_to_string(path)?;
-        self.run(&script_content);
+
+        let mut interpreter = Interpreter::new();
+
+        self.run(&script_content, &mut interpreter);
         if self.had_error {
             std::process::exit(65); // EX_DATAERR from sysexits.h
+        }
+        if self.had_runtime_error {
+            std::process::exit(70); // EX_SOFTWARE from sysexits.h
         }
         Ok(())
     }
 
     fn run_prompt(mut self) -> Result<(), std::io::Error> {
+        let mut interpreter = Interpreter::new();
+
         loop {
             print!("> ");
             stdout().flush()?;
 
             match stdin().lines().next() {
                 Some(Ok(input)) => {
-                    self.run(&input);
+                    self.run(&input, &mut interpreter);
                     self.had_error = false;
                 }
                 Some(Err(readline_err)) => return Err(readline_err),
@@ -122,7 +134,7 @@ impl Lox {
         Ok(())
     }
 
-    fn run(&mut self, source: &str) {
+    fn run(&mut self, source: &str, interpreter: &mut Interpreter) {
         let mut scanner = Scanner::new(source);
 
         scanner.scan_tokens(self);
@@ -138,7 +150,9 @@ impl Lox {
 
         let expression = expression.expect("parser should report errors to the Lox interpreter properly so they can be detected and handled in a nice way");
 
-        println!("{}", ast_printer::AstPrinter(&expression).walk_ast());
+        // println!("{}", ast_printer::AstPrinter(&expression).walk_ast());
+
+        interpreter.interpret(&expression, self);
     }
 
     fn token_error(&mut self, token: &token::Token, message: &str) {
@@ -151,6 +165,11 @@ impl Lox {
                 message,
             );
         }
+    }
+
+    fn runtime_error(&mut self, err: runtime_error::RuntimeError) {
+        eprintln!("{}\n[line {}]", &err.message, err.token.line());
+        self.had_runtime_error = true;
     }
 
     fn error_with_linenum(&mut self, line: LineNum, message: &str) {

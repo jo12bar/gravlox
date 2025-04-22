@@ -1,44 +1,29 @@
-use std::any::Any;
+use std::borrow::Cow;
 use std::fmt;
 
-mod sealed {
-    use super::*;
+#[derive(Debug, Clone)]
+pub enum Literal<'a> {
+    Num(f64),
+    Bool(bool),
+    String(Cow<'a, str>),
+}
 
-    pub trait LiteralExt {
-        /// Clone literal into a new box.
-        fn clone_box(&self) -> Box<dyn Literal>;
-
-        /// Cast literal into a &dyn Any.
-        fn as_any(&self) -> &dyn Any;
-    }
-
-    impl<T> LiteralExt for T
-    where
-        T: 'static + Literal + Clone,
-    {
-        fn clone_box(&self) -> Box<dyn Literal> {
-            Box::new(self.clone())
-        }
-
-        fn as_any(&self) -> &dyn Any {
-            println!("-- convert type {:?} to Any", self.type_id());
-            self
+impl fmt::Display for Literal<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Literal::Num(n) => n.fmt(f),
+            Literal::Bool(b) => b.fmt(f),
+            Literal::String(s) => s.fmt(f),
         }
     }
 }
 
-pub trait Literal: fmt::Display + fmt::Debug + sealed::LiteralExt {}
-
-impl<T> Literal for Box<T> where T: Literal + Clone + 'static {}
-
-impl Clone for Box<dyn Literal> {
-    fn clone(&self) -> Self {
-        self.clone_box()
+impl Literal<'_> {
+    pub fn into_owned(self) -> Literal<'static> {
+        match self {
+            Literal::Num(n) => Literal::Num(n),
+            Literal::Bool(b) => Literal::Bool(b),
+            Literal::String(s) => Literal::String(s.into_owned().into()),
+        }
     }
 }
-
-impl Literal for &'static str {}
-impl Literal for String {}
-
-impl Literal for f64 {}
-impl Literal for bool {}

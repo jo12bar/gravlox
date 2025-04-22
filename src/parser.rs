@@ -1,16 +1,16 @@
 use std::fmt;
 
-use crate::{Lox, expr::Expr, token::Token, token_type::TokenType};
+use crate::{expr::Expr, literal::Literal, token::Token, token_type::TokenType, Lox};
 
 /// A recursive-descent parser.
 #[derive(Debug)]
-pub struct Parser {
-    tokens: Vec<Token>,
+pub struct Parser<'a> {
+    tokens: Vec<Token<'a>>,
     current: usize,
 }
 
-impl Parser {
-    pub fn new(tokens: Vec<Token>) -> Parser {
+impl Parser<'_> {
+    pub fn new(tokens: Vec<Token<'_>>) -> Parser {
         Parser { tokens, current: 0 }
     }
 
@@ -135,11 +135,11 @@ impl Parser {
     /// comma          → equality ( "," equality )* ;
     /// ```
     fn comma(&mut self, lox: &mut Lox) -> Result<Expr, ParserError> {
-        let mut expr = self.equality(lox)?;
+        let mut expr = self.equality(lox)?.into_owned();
 
         while self.match_tokens([TokenType::Comma]) {
-            let operator = self.previous().clone();
-            let right = self.equality(lox)?;
+            let operator = self.previous().clone().into_owned();
+            let right = self.equality(lox)?.into_owned();
             expr = Expr::Binary {
                 left: Box::new(expr),
                 operator,
@@ -159,11 +159,11 @@ impl Parser {
     /// equality       → comparison ( ( "!=" | "==" ) comparison )* ;
     /// ```
     fn equality(&mut self, lox: &mut Lox) -> Result<Expr, ParserError> {
-        let mut expr = self.comparison(lox)?;
+        let mut expr = self.comparison(lox)?.into_owned();
 
         while self.match_tokens([TokenType::BangEqual, TokenType::EqualEqual]) {
-            let operator = self.previous().clone();
-            let right = self.comparison(lox)?;
+            let operator = self.previous().clone().into_owned();
+            let right = self.comparison(lox)?.into_owned();
             expr = Expr::Binary {
                 left: Box::new(expr),
                 operator,
@@ -183,7 +183,7 @@ impl Parser {
     /// comparison       → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
     /// ```
     fn comparison(&mut self, lox: &mut Lox) -> Result<Expr, ParserError> {
-        let mut expr = self.term(lox)?;
+        let mut expr = self.term(lox)?.into_owned();
 
         while self.match_tokens([
             TokenType::Greater,
@@ -191,8 +191,8 @@ impl Parser {
             TokenType::Less,
             TokenType::LessEqual,
         ]) {
-            let operator = self.previous().clone();
-            let right = self.term(lox)?;
+            let operator = self.previous().clone().into_owned();
+            let right = self.term(lox)?.into_owned();
             expr = Expr::Binary {
                 left: Box::new(expr),
                 operator,
@@ -212,11 +212,11 @@ impl Parser {
     /// term           → factor ( ( "-" | "+" ) factor )* ;
     /// ```
     fn term(&mut self, lox: &mut Lox) -> Result<Expr, ParserError> {
-        let mut expr = self.factor(lox)?;
+        let mut expr = self.factor(lox)?.into_owned();
 
         while self.match_tokens([TokenType::Minus, TokenType::Plus]) {
-            let operator = self.previous().clone();
-            let right = self.factor(lox)?;
+            let operator = self.previous().clone().into_owned();
+            let right = self.factor(lox)?.into_owned();
             expr = Expr::Binary {
                 left: Box::new(expr),
                 operator,
@@ -236,11 +236,11 @@ impl Parser {
     /// factor         → unary ( ( "/" | "*" ) unary )* ;
     /// ```
     fn factor(&mut self, lox: &mut Lox) -> Result<Expr, ParserError> {
-        let mut expr = self.unary(lox)?;
+        let mut expr = self.unary(lox)?.into_owned();
 
         while self.match_tokens([TokenType::Slash, TokenType::Star]) {
-            let operator = self.previous().clone();
-            let right = self.unary(lox)?;
+            let operator = self.previous().clone().into_owned();
+            let right = self.unary(lox)?.into_owned();
             expr = Expr::Binary {
                 left: Box::new(expr),
                 operator,
@@ -262,8 +262,8 @@ impl Parser {
     /// ```
     fn unary(&mut self, lox: &mut Lox) -> Result<Expr, ParserError> {
         if self.match_tokens([TokenType::Bang, TokenType::Minus]) {
-            let operator = self.previous().clone();
-            let right = self.unary(lox)?;
+            let operator = self.previous().clone().into_owned();
+            let right = self.unary(lox)?.into_owned();
             return Ok(Expr::Unary {
                 operator,
                 right: Box::new(right),
@@ -284,10 +284,10 @@ impl Parser {
     /// ```
     fn primary(&mut self, lox: &mut Lox) -> Result<Expr, ParserError> {
         if self.match_tokens([TokenType::False]) {
-            return Ok(Expr::Literal(Some(Box::new(false))));
+            return Ok(Expr::Literal(Some(Literal::Bool(false))));
         }
         if self.match_tokens([TokenType::True]) {
-            return Ok(Expr::Literal(Some(Box::new(true))));
+            return Ok(Expr::Literal(Some(Literal::Bool(true))));
         }
         if self.match_tokens([TokenType::Nil]) {
             return Ok(Expr::Literal(None));
@@ -298,7 +298,7 @@ impl Parser {
         }
 
         if self.match_tokens([TokenType::LeftParen]) {
-            let expr = Box::new(self.expression(lox)?);
+            let expr = Box::new(self.expression(lox)?.into_owned());
             self.consume(TokenType::RightParen, "Expect ')' after expression.", lox)?;
             return Ok(Expr::Grouping(expr));
         }

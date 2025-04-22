@@ -10,7 +10,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-enum Value<'a> {
+pub enum Value<'a> {
     Nil,
     Num(f64),
     Bool(bool),
@@ -18,48 +18,12 @@ enum Value<'a> {
 }
 
 impl Value<'_> {
-    fn from_literal(literal: &dyn Literal) -> Value<'_> {
-        // TODO: This is awful, need to turn literal into an enum and unify this somehow
-        let literal = literal.as_any();
-
-        if literal.downcast_ref::<()>().is_some() {
-            Value::Nil
-        } else if let Some(num) = literal.downcast_ref::<f64>() {
-            Value::Num(*num)
-        } else if let Some(b) = literal.downcast_ref::<bool>() {
-            Value::Bool(*b)
-        } else if let Some(s) = literal.downcast_ref::<&str>() {
-            Value::String(Cow::Borrowed(s))
-        } else if let Some(s) = literal.downcast_ref::<String>() {
-            Value::String(Cow::Owned(s.clone()))
-        } else {
-            unimplemented!(
-                "Interpreter bug: tried to convert unhandled literal type {:?} into an interpreter value",
-                (*literal).type_id()
-            );
-        }
-    }
-
-    fn from_owned_literal(literal: Box<dyn Literal>) -> Value<'static> {
-        // TODO: This is awful, need to turn literal into an enum and unify this somehow
-        let literal = literal.clone();
-        let literal = literal.as_any();
-
-        if literal.downcast_ref::<()>().is_some() {
-            Value::Nil
-        } else if let Some(num) = literal.downcast_ref::<f64>() {
-            Value::Num(*num)
-        } else if let Some(b) = literal.downcast_ref::<bool>() {
-            Value::Bool(*b)
-        } else if let Some(s) = literal.downcast_ref::<&str>() {
-            Value::String(Cow::Borrowed(s))
-        } else if let Some(s) = literal.downcast_ref::<String>() {
-            Value::String(Cow::Owned(s.clone()))
-        } else {
-            unimplemented!(
-                "Interpreter bug: tried to convert unhandled literal type {:?} into an interpreter value",
-                (*literal).type_id()
-            );
+    fn from_literal<'a, 'r: 'a>(literal: &'r Literal<'a>) -> Value<'a> {
+        match literal {
+            Literal::Num(n) => Value::Num(*n),
+            Literal::Bool(b) => Value::Bool(*b),
+            Literal::String(Cow::Borrowed(s)) => Value::String(Cow::Borrowed(s)),
+            Literal::String(Cow::Owned(s)) => Value::String(Cow::Borrowed(s)),
         }
     }
 }
@@ -108,31 +72,33 @@ impl Interpreter {
         }
     }
 
-    fn evaluate<'a>(&mut self, expr: &Expr) -> Result<Value<'a>, RuntimeError> {
+    fn evaluate<'a, 'r: 'a>(&mut self, expr: &'r Expr<'a>) -> Result<Value<'a>, RuntimeError> {
         expr.walk(self)
     }
 }
 
-impl<'a> expr::Visitor<Result<Value<'a>, RuntimeError>> for Interpreter {
-    fn visit_literal_expr(&mut self, literal_expr: &Expr) -> Result<Value<'a>, RuntimeError> {
+impl expr::Visitor for Interpreter {
+    type Ret<'a> = Result<Value<'a>, RuntimeError>;
+
+    fn visit_literal_expr<'a, 'r: 'a>(&mut self, literal_expr: &'r Expr<'a>) -> Result<Value<'a>, RuntimeError> {
         let Expr::Literal(value) = literal_expr else {
             unreachable!("should always be a literal expr");
         };
 
         match value {
-            Some(lit) => Ok(Value::from_owned_literal(lit.clone())),
+            Some(lit) => Ok(Value::from_literal(lit)),
             None => Ok(Value::Nil),
         }
     }
 
-    fn visit_grouping_expr(&mut self, grouping_expr: &Expr) -> Result<Value<'a>, RuntimeError> {
+    fn visit_grouping_expr<'a, 'r: 'a>(&mut self, grouping_expr: &'r Expr<'a>) -> Result<Value<'a>, RuntimeError> {
         let Expr::Grouping(expression) = grouping_expr else {
             unreachable!("should always be a grouping expr");
         };
         self.evaluate(expression)
     }
 
-    fn visit_unary_expr(&mut self, unary_expr: &Expr) -> Result<Value<'a>, RuntimeError> {
+    fn visit_unary_expr<'a, 'r: 'a>(&mut self, unary_expr: &'r Expr<'a>) -> Result<Value<'a>, RuntimeError> {
         let Expr::Unary { operator, right } = unary_expr else {
             unreachable!("should always be an unary expr");
         };
@@ -153,7 +119,7 @@ impl<'a> expr::Visitor<Result<Value<'a>, RuntimeError>> for Interpreter {
         }
     }
 
-    fn visit_binary_expr(&mut self, binary_expr: &Expr) -> Result<Value<'a>, RuntimeError> {
+    fn visit_binary_expr<'a, 'r: 'a>(&mut self, binary_expr: &'r Expr<'a>) -> Result<Value<'a>, RuntimeError> {
         let Expr::Binary {
             left,
             operator,

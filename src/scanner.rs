@@ -1,22 +1,22 @@
-use std::sync::LazyLock;
+use std::{borrow::Cow, sync::LazyLock};
 
 use rustc_hash::FxHashMap;
 
 use crate::{LineNum, Lox, literal::Literal, token::Token, token_type::TokenType};
 
-pub struct Scanner {
-    source: String,
-    tokens: Vec<Token>,
+pub struct Scanner<'source> {
+    source: &'source str,
+    tokens: Vec<Token<'source>>,
 
     start: LineNum,
     current: LineNum,
     line: LineNum,
 }
 
-impl Scanner {
-    pub fn new(source: impl ToString) -> Scanner {
+impl<'a> Scanner<'a> {
+    pub fn new(source: &str) -> Scanner<'_> {
         Scanner {
-            source: source.to_string(),
+            source,
             tokens: Vec::new(),
 
             start: 0,
@@ -179,7 +179,10 @@ impl Scanner {
         let str_value = self
             .get_source_substring(self.start + 1, self.current - 1)
             .to_string();
-        self.add_token_lit(TokenType::String, Some(Box::new(str_value)));
+        self.add_token_lit(
+            TokenType::String,
+            Some(Literal::String(Cow::Owned(str_value))),
+        );
     }
 
     /// Scan a number, like `103` or `0.23034` or `420.69`.
@@ -202,7 +205,7 @@ impl Scanner {
             .get_source_substring(self.start, self.current)
             .parse::<f64>()
             .expect("parsing number should succeed since we already checked its format");
-        self.add_token_lit(TokenType::Number, Some(Box::new(num)));
+        self.add_token_lit(TokenType::Number, Some(Literal::Num(num)));
     }
 
     /// Scan an identifier, using C's identifier rules.
@@ -285,7 +288,7 @@ impl Scanner {
         self.add_token_lit(typ, None);
     }
 
-    fn add_token_lit(&mut self, typ: TokenType, literal: Option<Box<dyn Literal>>) {
+    fn add_token_lit(&mut self, typ: TokenType, literal: Option<Literal<'a>>) {
         let lexeme = self.get_source_substring(self.start, self.current);
         self.tokens
             .push(Token::new(typ, lexeme, literal, self.line));

@@ -4,13 +4,13 @@ use crate::token::Token;
 
 #[derive(Debug)]
 pub struct RuntimeError {
-    pub token: Token,
+    pub token: Token<'static>,
     pub message: String,
 }
 
 impl RuntimeError {
-    pub fn new(token: Token, message: String) -> Self {
-        Self { token, message }
+    pub fn new(token: Token<'_>, message: String) -> RuntimeError {
+        RuntimeError { token: token.into_owned(), message }
     }
 }
 

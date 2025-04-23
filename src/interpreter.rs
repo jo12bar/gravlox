@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use crate::literal::Literal;
 use crate::{
     Lox,
-    expr::{self, Expr, Walkable},
+    ast::{self, Expr, Walkable},
     runtime_error::RuntimeError,
     token::Token,
     token_type::TokenType,
@@ -77,7 +77,7 @@ impl Interpreter {
     }
 }
 
-impl expr::Visitor for Interpreter {
+impl ast::Visitor for Interpreter {
     type Ret<'a> = Result<Value<'a>, RuntimeError>;
 
     fn visit_literal_expr<'a, 'r: 'a>(&mut self, literal_expr: &'r Expr<'a>) -> Result<Value<'a>, RuntimeError> {

@@ -1,5 +1,5 @@
 mod ast_printer;
-mod expr;
+mod ast;
 mod interpreter;
 mod literal;
 mod parser;

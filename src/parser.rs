@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::{expr::Expr, literal::Literal, token::Token, token_type::TokenType, Lox};
+use crate::{ast::Expr, literal::Literal, token::Token, token_type::TokenType, Lox};
 
 /// A recursive-descent parser.
 #[derive(Debug)]

@@ -1,4 +1,4 @@
-use crate::expr::{self, Expr, Walkable};
+use crate::ast::{self, Expr, Walkable};
 
 /// Converts an expression tree to a string using Lisp-like groupings.
 ///
@@ -37,7 +37,7 @@ impl AstPrinter<'_, '_> {
     }
 }
 
-impl expr::Visitor for AstPrinter<'_, '_> {
+impl ast::Visitor for AstPrinter<'_, '_> {
     type Ret<'r> = String;
 
     fn visit_grouping_expr<'e, 'r: 'e>(&mut self, grouping_expr: &'r Expr<'e>) -> String {

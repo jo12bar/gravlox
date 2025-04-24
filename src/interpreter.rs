@@ -1,5 +1,7 @@
 use std::borrow::Cow;
 
+use log::debug;
+
 use crate::literal::Literal;
 use crate::{
     Lox,
@@ -38,35 +40,33 @@ impl Interpreter {
 
     /// Interpret an expression, and print the result.
     pub fn interpret(&mut self, expr: &Expr, lox: &mut Lox) {
+        debug!("evaluating {expr:?}");
         match self.evaluate(expr) {
-            Ok(res_val) => match res_val {
-                Value::Num(num) => {
-                    let mut text = num.to_string();
-                    if text.ends_with(".0") {
-                        text.pop();
-                        text.pop();
+            Ok(res_val) => {
+                debug!("evaluation result: Ok({:?})", &res_val);
+                match res_val {
+                    Value::Num(num) => {
+                        let mut text = num.to_string();
+                        if text.ends_with(".0") {
+                            text.pop();
+                            text.pop();
+                        }
+                        println!("{num}");
                     }
-                    println!("-- f64 --");
-                    println!("{num}");
-                }
-                Value::Bool(b) => {
-                    println!("-- bool --");
-                    println!("{b}");
-                }
-                Value::String(s) => {
-                    if matches!(s, Cow::Borrowed(_)) {
-                        println!("-- Cow<'_, str>::Borrowed --");
-                    } else {
-                        println!("-- Cow<'_, str>::Owned --");
+                    Value::Bool(b) => {
+                        println!("{b}");
                     }
-                    println!("{s}");
+                    Value::String(s) => {
+                        println!("{s}");
+                    }
+                    Value::Nil => {
+                        println!("nil");
+                    }
                 }
-                Value::Nil => {
-                    println!("nil");
-                }
-            },
+            }
 
             Err(e) => {
+                debug!("evaluation resulted in runtime error: {0} (Err({0:?}))", &e);
                 lox.runtime_error(e);
             }
         }
@@ -80,7 +80,10 @@ impl Interpreter {
 impl ast::Visitor for Interpreter {
     type Ret<'a> = Result<Value<'a>, RuntimeError>;
 
-    fn visit_literal_expr<'a, 'r: 'a>(&mut self, literal_expr: &'r Expr<'a>) -> Result<Value<'a>, RuntimeError> {
+    fn visit_literal_expr<'a, 'r: 'a>(
+        &mut self,
+        literal_expr: &'r Expr<'a>,
+    ) -> Result<Value<'a>, RuntimeError> {
         let Expr::Literal(value) = literal_expr else {
             unreachable!("should always be a literal expr");
         };
@@ -91,14 +94,20 @@ impl ast::Visitor for Interpreter {
         }
     }
 
-    fn visit_grouping_expr<'a, 'r: 'a>(&mut self, grouping_expr: &'r Expr<'a>) -> Result<Value<'a>, RuntimeError> {
+    fn visit_grouping_expr<'a, 'r: 'a>(
+        &mut self,
+        grouping_expr: &'r Expr<'a>,
+    ) -> Result<Value<'a>, RuntimeError> {
         let Expr::Grouping(expression) = grouping_expr else {
             unreachable!("should always be a grouping expr");
         };
         self.evaluate(expression)
     }
 
-    fn visit_unary_expr<'a, 'r: 'a>(&mut self, unary_expr: &'r Expr<'a>) -> Result<Value<'a>, RuntimeError> {
+    fn visit_unary_expr<'a, 'r: 'a>(
+        &mut self,
+        unary_expr: &'r Expr<'a>,
+    ) -> Result<Value<'a>, RuntimeError> {
         let Expr::Unary { operator, right } = unary_expr else {
             unreachable!("should always be an unary expr");
         };
@@ -119,7 +128,10 @@ impl ast::Visitor for Interpreter {
         }
     }
 
-    fn visit_binary_expr<'a, 'r: 'a>(&mut self, binary_expr: &'r Expr<'a>) -> Result<Value<'a>, RuntimeError> {
+    fn visit_binary_expr<'a, 'r: 'a>(
+        &mut self,
+        binary_expr: &'r Expr<'a>,
+    ) -> Result<Value<'a>, RuntimeError> {
         let Expr::Binary {
             left,
             operator,

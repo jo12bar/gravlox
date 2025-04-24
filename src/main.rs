@@ -1,5 +1,5 @@
-mod ast_printer;
 mod ast;
+mod ast_printer;
 mod interpreter;
 mod literal;
 mod parser;
@@ -27,6 +27,22 @@ USAGE:
 FLAGS:
   -h, --help    Print help information and exit.
 
+  -V [VERBOSITY_LEVEL], --verbosity [VERBOSITY_LEVEL]
+                Set verbosity level [default: \"warn\"] for logging during
+                script parsing and execution. Note that this is the
+                interpreter's verbosity, not the script's logging (Lox `print`
+                statements are unaffected). This is primarily for debugging
+                purposes.
+                Possible values in increasing order of verbosity:
+                    [off | error | warn | info | debug | trace]
+                If any other value is passed in, this flag will assume the
+                default.
+                Setting higher verbosity levels will probably slow down script
+                parsing and execution, so be careful.
+                NOTE: You can also use the \"GRAVLOX_LOG\" environment variable
+                to set this. If both \"GRAVLOX_LOG\" is set and this CLI flag is
+                used, the CLI flag will take precedence.
+
 ARGS:
   [SCRIPT]      The Lox script to interpret and run. If not passed, the Lox
                 REPL will be started instead.
@@ -35,6 +51,7 @@ ARGS:
 #[derive(Debug)]
 struct CliArgs {
     script: Option<std::path::PathBuf>,
+    logging_verbosity: Option<log::LevelFilter>,
 }
 
 fn main() {
@@ -47,6 +64,8 @@ fn main() {
             std::process::exit(64); // EX_USAGE from sysexits.h
         }
     };
+
+    init_logging(&args.logging_verbosity);
 
     let lox = Lox::new();
 
@@ -73,6 +92,11 @@ fn parse_args() -> Result<CliArgs, pico_args::Error> {
     }
 
     let args = CliArgs {
+        logging_verbosity: pargs
+            .opt_value_from_str(["-V", "--verbosity"])
+            .ok()
+            .flatten(),
+
         script: match pargs.free_from_str() {
             Ok(v) => Some(v),
             Err(pico_args::Error::MissingArgument) => None,
@@ -82,10 +106,27 @@ fn parse_args() -> Result<CliArgs, pico_args::Error> {
 
     let remaining = pargs.finish();
     if !remaining.is_empty() {
-        eprintln!("Warning: unused arguments left: {remaining:?}");
+        log::warn!("Unused arguments left: {remaining:?}");
     }
 
     Ok(args)
+}
+
+fn init_logging(logging_verbosity: &Option<log::LevelFilter>) {
+    use env_logger::Builder;
+    use log::LevelFilter;
+
+    let mut builder = Builder::new();
+
+    builder
+        .filter_level(LevelFilter::Warn)
+        .parse_env("GRAVLOX_LOG");
+
+    if let Some(cli_level_filter) = logging_verbosity {
+        builder.filter_level(*cli_level_filter);
+    }
+
+    builder.format_timestamp(None).init();
 }
 
 #[derive(Debug)]
@@ -96,7 +137,10 @@ struct Lox {
 
 impl Lox {
     fn new() -> Lox {
-        Lox { had_error: false, had_runtime_error: false }
+        Lox {
+            had_error: false,
+            had_runtime_error: false,
+        }
     }
 
     fn run_file(mut self, path: &std::path::Path) -> Result<(), std::io::Error> {
@@ -150,7 +194,9 @@ impl Lox {
 
         let expression = expression.expect("parser should report errors to the Lox interpreter properly so they can be detected and handled in a nice way");
 
-        // println!("{}", ast_printer::AstPrinter(&expression).walk_ast());
+        if log::log_enabled!(log::Level::Trace) {
+            log::trace!("AST: {}", ast_printer::AstPrinter(&expression).walk_ast());
+        }
 
         interpreter.interpret(&expression, self);
     }

@@ -16,8 +16,10 @@ use super::{ExprVisitor, ExprWalkable};
 /// factor         → unary ( ( "/" | "*" ) unary )* ;
 /// unary          → ( "!" | "-" ) unary
 ///                | primary ;
-/// primary        → NUMBER | STRING | "true" | "false" | "nil"
-///                | "(" expression ")" ;
+/// primary        → "true" | "false" | "nil"
+///                | NUMBER | STRING
+///                | "(" expression ")"
+///                | IDENTIFIER ;
 /// ```
 #[derive(Debug, Clone)]
 pub enum Expr<'a> {
@@ -31,6 +33,9 @@ pub enum Expr<'a> {
         left: Box<Expr<'static>>,
         operator: Token<'a>,
         right: Box<Expr<'static>>,
+    },
+    Var {
+        name: Token<'a>,
     },
 }
 
@@ -52,6 +57,9 @@ impl Expr<'_> {
                 operator: operator.into_owned(),
                 right,
             },
+            Expr::Var { name } => Expr::Var {
+                name: name.into_owned(),
+            },
         }
     }
 }
@@ -66,6 +74,7 @@ impl<R> ExprWalkable<R> for Expr<'_> {
             Expr::Literal(..) => visitor.visit_literal_expr(self),
             Expr::Unary { .. } => visitor.visit_unary_expr(self),
             Expr::Binary { .. } => visitor.visit_binary_expr(self),
+            Expr::Var { .. } => visitor.visit_var_expr(self),
         }
     }
 }

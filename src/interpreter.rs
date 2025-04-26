@@ -4,6 +4,7 @@ use std::fmt;
 use log::debug;
 
 use crate::ast::{Stmt, StmtWalkable};
+use crate::environment::Environment;
 use crate::literal::Literal;
 use crate::{
     Lox,
@@ -30,6 +31,15 @@ impl Value<'_> {
             Literal::String(Cow::Owned(s)) => Value::String(Cow::Borrowed(s)),
         }
     }
+
+    fn into_owned(self) -> Value<'static> {
+        match self {
+            Value::Nil => Value::Nil,
+            Value::Num(n) => Value::Num(n),
+            Value::Bool(b) => Value::Bool(b),
+            Value::String(s) => Value::String(s.into_owned().into()),
+        }
+    }
 }
 
 impl fmt::Display for Value<'_> {
@@ -50,12 +60,14 @@ impl fmt::Display for Value<'_> {
     }
 }
 
-#[derive(Debug)]
-pub struct Interpreter;
+#[derive(Debug, Default)]
+pub struct Interpreter {
+    environment: Environment,
+}
 
 impl Interpreter {
     pub fn new() -> Interpreter {
-        Interpreter
+        Self::default()
     }
 
     /// Interpret an expression, and print the result.
@@ -80,7 +92,10 @@ impl Interpreter {
 
     fn evaluate<'a, 'r: 'a>(&mut self, expr: &'r Expr<'a>) -> Result<Value<'a>, RuntimeError> {
         if log::log_enabled!(log::Level::Trace) {
-            log::trace!("evaluating expression: {}", crate::ast_printer::AstPrinter(expr).walk_ast());
+            log::trace!(
+                "evaluating expression: {}",
+                crate::ast_printer::AstPrinter(expr).walk_ast()
+            );
         }
         expr.walk_expr(self)
     }
@@ -213,6 +228,14 @@ impl ast::ExprVisitor for Interpreter {
             }
         }
     }
+
+    fn visit_var_expr<'a, 'r: 'a>(&mut self, var_expr: &'r Expr<'a>) -> Self::Ret<'a> {
+        let Expr::Var { name } = var_expr else {
+            unreachable!("should always be a var expression");
+        };
+
+        self.environment.get(name).cloned()
+    }
 }
 
 impl ast::StmtVisitor for Interpreter {
@@ -237,6 +260,23 @@ impl ast::StmtVisitor for Interpreter {
 
         let value = self.evaluate(expression)?;
         println!("{value}");
+
+        Ok(())
+    }
+
+    fn visit_var_stmt<'a, 'r: 'a>(&mut self, var_stmt: &'r Stmt<'a>) -> Self::Ret<'a> {
+        let Stmt::Var { name, initializer } = var_stmt else {
+            unreachable!("should always be a var statement");
+        };
+
+        // Lox sets a variable to `nil` if it isn't explicitly initialized.
+        let value = if let Some(expr) = initializer {
+            self.evaluate(expr)?
+        } else {
+            Value::Nil
+        };
+
+        self.environment.define(name.lexeme(), value.into_owned());
 
         Ok(())
     }

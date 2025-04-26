@@ -1,10 +1,10 @@
 //! AST defining a program.
 //!
-//! A program is just a list of statements terminated by a special "end of file"
+//! A program is just a list of declarations terminated by a special "end of file"
 //! token. Using the book's version of BNF:
 //!
 //! ```text
-//! program        → statement* EOF ;
+//! program        → declaration* EOF ;
 //! ```
 //!
 
@@ -28,6 +28,8 @@ pub trait ExprVisitor {
     fn visit_unary_expr<'a, 'r: 'a>(&mut self, unary_expr: &'r Expr<'a>) -> Self::Ret<'a>;
     /// Visit a [`Expr::Binary`].
     fn visit_binary_expr<'a, 'r: 'a>(&mut self, binary_expr: &'r Expr<'a>) -> Self::Ret<'a>;
+    /// Visit a [`Expr::Var`].
+    fn visit_var_expr<'a, 'r: 'a>(&mut self, var_expr: &'r Expr<'a>) -> Self::Ret<'a>;
 }
 
 /// A trait allowing something to visit a tree of [statements][Stmt].
@@ -37,9 +39,12 @@ pub trait StmtVisitor {
     type Ret<'a>;
 
     /// Visit a [`Stmt::Expression`].
-    fn visit_expression_stmt<'a, 'r: 'a>(&mut self, expression_stmt: &'r Stmt<'a>) -> Self::Ret<'a>;
+    fn visit_expression_stmt<'a, 'r: 'a>(&mut self, expression_stmt: &'r Stmt<'a>)
+    -> Self::Ret<'a>;
     /// Visit a [`Stmt::Print`].
     fn visit_print_stmt<'a, 'r: 'a>(&mut self, print_stmt: &'r Stmt<'a>) -> Self::Ret<'a>;
+    /// Visit a [`Stmt::Var`].
+    fn visit_var_stmt<'a, 'r: 'a>(&mut self, var_stmt: &'r Stmt<'a>) -> Self::Ret<'a>;
 }
 
 /// Something that can be iterably visited by an [`ExprVisitor`].

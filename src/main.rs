@@ -1,5 +1,6 @@
 mod ast;
 mod ast_printer;
+mod environment;
 mod interpreter;
 mod literal;
 mod parser;
@@ -192,7 +193,10 @@ impl Lox {
             return;
         }
 
-        let statements = statements.expect("parser should report errors to the Lox interpreter properly so they can be detected and handled in a nice way");
+        let statements = statements
+            .into_iter()
+            .collect::<Option<Vec<_>>>()
+            .expect("parser should report errors to the Lox interpreter properly so they can be detected and handled in a nice way");
 
         interpreter.interpret(&statements, self);
     }

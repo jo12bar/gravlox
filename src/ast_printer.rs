@@ -83,6 +83,14 @@ impl ast::ExprVisitor for AstPrinter<'_, '_> {
 
         self.parenthesize(operator.lexeme(), [left, right])
     }
+
+    fn visit_var_expr<'a, 'r: 'a>(&mut self, var_expr: &'r Expr<'a>) -> Self::Ret<'a> {
+        let Expr::Var { name } = var_expr else {
+            unreachable!("should always be a var expression");
+        };
+
+        name.lexeme().to_string()
+    }
 }
 
 #[cfg(test)]

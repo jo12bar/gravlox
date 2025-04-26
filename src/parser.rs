@@ -1,6 +1,12 @@
 use std::fmt;
 
-use crate::{ast::{Expr, Stmt}, literal::Literal, token::Token, token_type::TokenType, Lox};
+use crate::{
+    Lox,
+    ast::{Expr, Stmt},
+    literal::Literal,
+    token::Token,
+    token_type::TokenType,
+};
 
 /// A recursive-descent parser.
 #[derive(Debug)]
@@ -15,14 +21,21 @@ impl Parser<'_> {
     }
 
     /// Parse the input tokens into an AST.
-    pub fn parse(&mut self, lox: &mut Lox) -> Result<Vec<Stmt<'static>>, ParserError> {
+    ///
+    /// Any statements that failed to be parsed will be returned as `None`.
+    /// The passed-in [Lox] instance will be used for reporting parsing errors.
+    /// When interpreting, make sure to avoid interpreting any statements that
+    /// failed to parse (i.e. returned as `None`), whether that involves
+    /// just interpreting all other statements or not interpreting anything in
+    /// the first place.
+    pub fn parse(&mut self, lox: &mut Lox) -> Vec<Option<Stmt<'static>>> {
         let mut statements = vec![];
 
         while !self.is_at_end() {
-            statements.push(self.statement(lox)?.into_owned());
+            statements.push(self.declaration(lox).map(|d| d.into_owned()));
         }
 
-        Ok(statements)
+        statements
     }
 
     /// Keep discarding tokens until we hit a statement boundary.
@@ -118,6 +131,60 @@ impl Parser<'_> {
     /// Will probably panic if `self.current == 0`.
     fn previous(&self) -> &Token {
         &self.tokens[self.current - 1]
+    }
+
+    #[allow(rustdoc::invalid_rust_codeblocks)]
+    /// Parse a "declaration" [statement][Stmt].
+    ///
+    /// Recovers from errors using [Parser::synchronize()]. Returns `None` if
+    /// parsing resulted in an error.
+    ///
+    /// Grammar:
+    ///
+    /// ```ignore
+    /// declaration    → varDecl
+    ///                | statement ;
+    /// ```
+    fn declaration(&mut self, lox: &mut Lox) -> Option<Stmt<'static>> {
+        if self.match_tokens([TokenType::Var]) {
+            self.var_declaration(lox)
+        } else {
+            self.statement(lox)
+        }
+        .ok()
+        .map(|s| s.into_owned())
+        .or_else(|| {
+            self.synchronize();
+            None
+        })
+    }
+
+    #[allow(rustdoc::invalid_rust_codeblocks)]
+    /// Parse a variable declaration [statement][Stmt].
+    ///
+    /// Grammar:
+    ///
+    /// ```ignore
+    /// varDecl        → "var" IDENTIFIER ( "=" expression )? ";" ;
+    /// ```
+    fn var_declaration(&mut self, lox: &mut Lox) -> Result<Stmt<'_>, ParserError> {
+        let name = self
+            .consume(TokenType::Identifier, "Expect variable name.", lox)?
+            .clone()
+            .into_owned();
+
+        let mut initializer = None;
+        if self.match_tokens([TokenType::Equal]) {
+            initializer = Some(self.expression(lox)?.into_owned());
+        }
+
+        self.consume(
+            TokenType::Semicolon,
+            "Expect ';' after variable declaration.",
+            lox,
+        )?;
+
+        Ok(Stmt::Var { name, initializer })
     }
 
     #[allow(rustdoc::invalid_rust_codeblocks)]
@@ -346,6 +413,10 @@ impl Parser<'_> {
 
         if self.match_tokens([TokenType::Number, TokenType::String]) {
             return Ok(Expr::Literal(self.previous().literal().cloned()));
+        }
+
+        if self.match_tokens([TokenType::Identifier]) {
+            return Ok(Expr::Var { name: self.previous().clone() })
         }
 
         if self.match_tokens([TokenType::LeftParen]) {

@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::{ast::Expr, literal::Literal, token::Token, token_type::TokenType, Lox};
+use crate::{ast::{Expr, Stmt}, literal::Literal, token::Token, token_type::TokenType, Lox};
 
 /// A recursive-descent parser.
 #[derive(Debug)]
@@ -15,8 +15,14 @@ impl Parser<'_> {
     }
 
     /// Parse the input tokens into an AST.
-    pub fn parse(&mut self, lox: &mut Lox) -> Result<Expr, ParserError> {
-        self.expression(lox)
+    pub fn parse(&mut self, lox: &mut Lox) -> Result<Vec<Stmt<'static>>, ParserError> {
+        let mut statements = vec![];
+
+        while !self.is_at_end() {
+            statements.push(self.statement(lox)?.into_owned());
+        }
+
+        Ok(statements)
     }
 
     /// Keep discarding tokens until we hit a statement boundary.
@@ -112,6 +118,51 @@ impl Parser<'_> {
     /// Will probably panic if `self.current == 0`.
     fn previous(&self) -> &Token {
         &self.tokens[self.current - 1]
+    }
+
+    #[allow(rustdoc::invalid_rust_codeblocks)]
+    /// Parse a [statement][Stmt].
+    ///
+    /// Grammar:
+    ///
+    /// ```ignore
+    /// statement      → exprStmt
+    ///                | printStmt ;
+    /// ```
+    fn statement(&mut self, lox: &mut Lox) -> Result<Stmt<'_>, ParserError> {
+        if self.match_tokens([TokenType::Print]) {
+            self.print_statement(lox)
+        } else {
+            self.expression_statement(lox)
+        }
+    }
+
+    #[allow(rustdoc::invalid_rust_codeblocks)]
+    /// Parse a print [statement][Stmt].
+    ///
+    /// Grammar:
+    ///
+    /// ```ignore
+    /// printStmt      → "print" expression ";" ;
+    /// ```
+    fn print_statement(&mut self, lox: &mut Lox) -> Result<Stmt<'static>, ParserError> {
+        let value = self.expression(lox)?.into_owned();
+        self.consume(TokenType::Semicolon, "Expect ';' after value.", lox)?;
+        Ok(Stmt::Print(value))
+    }
+
+    #[allow(rustdoc::invalid_rust_codeblocks)]
+    /// Parse an expression [statement][Stmt].
+    ///
+    /// Grammar:
+    ///
+    /// ```ignore
+    /// exprStmt       → expression ";" ;
+    /// ```
+    fn expression_statement(&mut self, lox: &mut Lox) -> Result<Stmt<'static>, ParserError> {
+        let value = self.expression(lox)?.into_owned();
+        self.consume(TokenType::Semicolon, "Expect ';' after value.", lox)?;
+        Ok(Stmt::Expression(value))
     }
 
     #[allow(rustdoc::invalid_rust_codeblocks)]

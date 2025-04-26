@@ -1,4 +1,4 @@
-use crate::ast::{self, Expr, Walkable};
+use crate::ast::{self, Expr, ExprWalkable};
 
 /// Converts an expression tree to a string using Lisp-like groupings.
 ///
@@ -15,7 +15,7 @@ impl<'a, 'expr> From<&'a Expr<'expr>> for AstPrinter<'a, 'expr> {
 impl AstPrinter<'_, '_> {
     /// Walk the expression tree and convert it to a string.
     pub fn walk_ast(&mut self) -> String {
-        self.0.walk(self)
+        self.0.walk_expr(self)
     }
 
     fn parenthesize<'e, I, E>(&mut self, name: &str, exprs: I) -> String
@@ -28,7 +28,7 @@ impl AstPrinter<'_, '_> {
 
         for expr in exprs.into_iter() {
             out.push(' ');
-            out.push_str(&expr.as_ref().walk(self));
+            out.push_str(&expr.as_ref().walk_expr(self));
         }
 
         out.push(')');
@@ -37,7 +37,7 @@ impl AstPrinter<'_, '_> {
     }
 }
 
-impl ast::Visitor for AstPrinter<'_, '_> {
+impl ast::ExprVisitor for AstPrinter<'_, '_> {
     type Ret<'r> = String;
 
     fn visit_grouping_expr<'e, 'r: 'e>(&mut self, grouping_expr: &'r Expr<'e>) -> String {
@@ -53,7 +53,11 @@ impl ast::Visitor for AstPrinter<'_, '_> {
             unreachable!("should always be a literal expr");
         };
         if let Some(lit) = value {
-            lit.to_string()
+            match lit {
+                crate::literal::Literal::Num(n) => n.to_string(),
+                crate::literal::Literal::Bool(b) => b.to_string(),
+                crate::literal::Literal::String(s) => format!("\"{s}\""),
+            }
         } else {
             "nil".to_string()
         }

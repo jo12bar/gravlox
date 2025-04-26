@@ -1,6 +1,6 @@
 use crate::{literal::Literal, token::Token};
 
-use super::{Visitor, Walkable};
+use super::{ExprVisitor, ExprWalkable};
 
 #[allow(rustdoc::invalid_rust_codeblocks)]
 /// An expression AST node.
@@ -56,10 +56,10 @@ impl Expr<'_> {
     }
 }
 
-impl<R> Walkable<R> for Expr<'_> {
-    fn walk<'a, V>(&'a self, visitor: &mut V) -> R
+impl<R> ExprWalkable<R> for Expr<'_> {
+    fn walk_expr<'a, V>(&'a self, visitor: &mut V) -> R
     where
-        V: Visitor<Ret<'a> = R>,
+        V: ExprVisitor<Ret<'a> = R>,
     {
         match self {
             Expr::Grouping(..) => visitor.visit_grouping_expr(self),

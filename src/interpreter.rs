@@ -1,11 +1,13 @@
 use std::borrow::Cow;
+use std::fmt;
 
 use log::debug;
 
+use crate::ast::{Stmt, StmtWalkable};
 use crate::literal::Literal;
 use crate::{
     Lox,
-    ast::{self, Expr, Walkable},
+    ast::{self, Expr, ExprWalkable},
     runtime_error::RuntimeError,
     token::Token,
     token_type::TokenType,
@@ -30,6 +32,24 @@ impl Value<'_> {
     }
 }
 
+impl fmt::Display for Value<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Value::Num(num) => {
+                let mut text = num.to_string();
+                if text.ends_with(".0") {
+                    text.pop();
+                    text.pop();
+                }
+                text.fmt(f)
+            }
+            Value::Bool(b) => b.fmt(f),
+            Value::String(s) => s.fmt(f),
+            Value::Nil => write!(f, "nil"),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Interpreter;
 
@@ -39,45 +59,34 @@ impl Interpreter {
     }
 
     /// Interpret an expression, and print the result.
-    pub fn interpret(&mut self, expr: &Expr, lox: &mut Lox) {
-        debug!("evaluating {expr:?}");
-        match self.evaluate(expr) {
-            Ok(res_val) => {
-                debug!("evaluation result: Ok({:?})", &res_val);
-                match res_val {
-                    Value::Num(num) => {
-                        let mut text = num.to_string();
-                        if text.ends_with(".0") {
-                            text.pop();
-                            text.pop();
-                        }
-                        println!("{num}");
-                    }
-                    Value::Bool(b) => {
-                        println!("{b}");
-                    }
-                    Value::String(s) => {
-                        println!("{s}");
-                    }
-                    Value::Nil => {
-                        println!("nil");
-                    }
-                }
-            }
-
-            Err(e) => {
-                debug!("evaluation resulted in runtime error: {0} (Err({0:?}))", &e);
+    pub fn interpret(&mut self, statements: &[Stmt<'_>], lox: &mut Lox) {
+        debug!("evaluating {} statements", statements.len());
+        for statement in statements {
+            if let Err(e) = self.execute(statement) {
+                debug!(
+                    "evaluating statement resulted in runtime error\nstatement: {0:?}\nruntime error: {1} ({1:?})",
+                    statement, &e
+                );
                 lox.runtime_error(e);
+                break;
             }
         }
+        debug!("done evaluating {} statements", statements.len());
+    }
+
+    fn execute<'a, 'r: 'a>(&mut self, stmt: &'r Stmt<'a>) -> Result<(), RuntimeError> {
+        stmt.walk_stmt(self)
     }
 
     fn evaluate<'a, 'r: 'a>(&mut self, expr: &'r Expr<'a>) -> Result<Value<'a>, RuntimeError> {
-        expr.walk(self)
+        if log::log_enabled!(log::Level::Trace) {
+            log::trace!("evaluating expression: {}", crate::ast_printer::AstPrinter(expr).walk_ast());
+        }
+        expr.walk_expr(self)
     }
 }
 
-impl ast::Visitor for Interpreter {
+impl ast::ExprVisitor for Interpreter {
     type Ret<'a> = Result<Value<'a>, RuntimeError>;
 
     fn visit_literal_expr<'a, 'r: 'a>(
@@ -203,6 +212,33 @@ impl ast::Visitor for Interpreter {
                 unreachable!("tried to evaluate invalid binary operator {typ:?}");
             }
         }
+    }
+}
+
+impl ast::StmtVisitor for Interpreter {
+    type Ret<'a> = Result<(), RuntimeError>;
+
+    fn visit_expression_stmt<'a, 'r: 'a>(
+        &mut self,
+        expression_stmt: &'r Stmt<'a>,
+    ) -> Self::Ret<'a> {
+        let Stmt::Expression(expression) = expression_stmt else {
+            unreachable!("should always be an expression statement");
+        };
+
+        self.evaluate(expression)?;
+        Ok(())
+    }
+
+    fn visit_print_stmt<'a, 'r: 'a>(&mut self, print_stmt: &'r Stmt<'a>) -> Self::Ret<'a> {
+        let Stmt::Print(expression) = print_stmt else {
+            unreachable!("should always be a print statement");
+        };
+
+        let value = self.evaluate(expression)?;
+        println!("{value}");
+
+        Ok(())
     }
 }
 

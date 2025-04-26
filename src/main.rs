@@ -185,20 +185,16 @@ impl Lox {
         let tokens = scanner.iter_tokens().cloned().collect();
 
         let mut parser = parser::Parser::new(tokens);
-        let expression = parser.parse(self);
+        let statements = parser.parse(self);
 
         // Stop if there was a syntax error
         if self.had_error {
             return;
         }
 
-        let expression = expression.expect("parser should report errors to the Lox interpreter properly so they can be detected and handled in a nice way");
+        let statements = statements.expect("parser should report errors to the Lox interpreter properly so they can be detected and handled in a nice way");
 
-        if log::log_enabled!(log::Level::Trace) {
-            log::trace!("AST: {}", ast_printer::AstPrinter(&expression).walk_ast());
-        }
-
-        interpreter.interpret(&expression, self);
+        interpreter.interpret(&statements, self);
     }
 
     fn token_error(&mut self, token: &token::Token, message: &str) {

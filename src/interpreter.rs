@@ -223,6 +223,8 @@ impl ast::ExprVisitor for Interpreter {
             TokenType::BangEqual => Ok(Value::Bool(!is_equal(&left, &right))),
             TokenType::EqualEqual => Ok(Value::Bool(is_equal(&left, &right))),
 
+            TokenType::Comma => Ok(right),
+
             typ => {
                 unreachable!("tried to evaluate invalid binary operator {typ:?}");
             }

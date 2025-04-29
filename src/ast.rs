@@ -30,6 +30,8 @@ pub trait ExprVisitor {
     fn visit_binary_expr<'a, 'r: 'a>(&mut self, binary_expr: &'r Expr<'a>) -> Self::Ret<'a>;
     /// Visit a [`Expr::Var`].
     fn visit_var_expr<'a, 'r: 'a>(&mut self, var_expr: &'r Expr<'a>) -> Self::Ret<'a>;
+    /// Visit a [`Expr::Assign`].
+    fn visit_assign_expr<'a, 'r: 'a>(&mut self, assign_expr: &'r Expr<'a>) -> Self::Ret<'a>;
 }
 
 /// A trait allowing something to visit a tree of [statements][Stmt].

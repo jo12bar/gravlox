@@ -1,0 +1,14 @@
+// Declare some variables and check their prints
+var a;
+var b = 2;
+print a;
+print b;
+
+// Assign to the variables and check
+a = 2 * b;
+b = 2 + a;
+print a;
+print b;
+
+// Check that assignment plays nice with prints and comma expressions
+print b = a, b, a / (2 * (b + 1));

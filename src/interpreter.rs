@@ -238,6 +238,16 @@ impl ast::ExprVisitor for Interpreter {
 
         self.environment.get(name).cloned()
     }
+
+    fn visit_assign_expr<'a, 'r: 'a>(&mut self, assign_expr: &'r Expr<'a>) -> Self::Ret<'a> {
+        let Expr::Assign { name, value } = assign_expr else {
+            unreachable!("shoudl always be an assign expression");
+        };
+
+        let value = self.evaluate(value)?;
+        self.environment.assign(name, value.clone().into_owned())?;
+        Ok(value)
+    }
 }
 
 impl ast::StmtVisitor for Interpreter {

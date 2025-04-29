@@ -8,7 +8,9 @@ use super::{ExprVisitor, ExprWalkable};
 /// Grammar, using the book's version of BNF:
 ///
 /// ```ignore
-/// expression     → comma ;
+/// expression     → assignment ;
+/// assignment     → IDENTIFIER "=" assignment
+///                | comma ;
 /// comma          → equality ( "," equality )* ;
 /// equality       → comparison ( ( "!=" | "==" ) comparison )* ;
 /// comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
@@ -37,6 +39,10 @@ pub enum Expr<'a> {
     Var {
         name: Token<'a>,
     },
+    Assign {
+        name: Token<'a>,
+        value: Box<Expr<'static>>,
+    },
 }
 
 impl Expr<'_> {
@@ -60,6 +66,10 @@ impl Expr<'_> {
             Expr::Var { name } => Expr::Var {
                 name: name.into_owned(),
             },
+            Expr::Assign { name, value } => Expr::Assign {
+                name: name.into_owned(),
+                value,
+            },
         }
     }
 }
@@ -75,6 +85,7 @@ impl<R> ExprWalkable<R> for Expr<'_> {
             Expr::Unary { .. } => visitor.visit_unary_expr(self),
             Expr::Binary { .. } => visitor.visit_binary_expr(self),
             Expr::Var { .. } => visitor.visit_var_expr(self),
+            Expr::Assign { .. } => visitor.visit_assign_expr(self),
         }
     }
 }

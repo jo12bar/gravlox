@@ -30,4 +30,19 @@ impl Environment {
             )
         })
     }
+
+    /// Set a pre-defined variable to something.
+    ///
+    /// Returns a runtime error if the variable does not exist.
+    pub fn assign(&mut self, name: &Token<'_>, value: Value<'static>) -> Result<(), RuntimeError> {
+        if let Some(v) = self.values.get_mut(name.lexeme()) {
+            *v = value;
+            Ok(())
+        } else {
+            Err(RuntimeError::new(
+                name.clone(),
+                format!("Undefined variable '{}'", name.lexeme()),
+            ))
+        }
+    }
 }

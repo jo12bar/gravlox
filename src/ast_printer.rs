@@ -91,6 +91,17 @@ impl ast::ExprVisitor for AstPrinter<'_, '_> {
 
         name.lexeme().to_string()
     }
+
+    fn visit_assign_expr<'a, 'r: 'a>(&mut self, assign_expr: &'r Expr<'a>) -> Self::Ret<'a> {
+        let Expr::Assign { name, value } = assign_expr else {
+            unreachable!("should always be an assign expr");
+        };
+
+        self.parenthesize(
+            "assign",
+            [&Box::new(Expr::Var { name: name.clone() }), value],
+        )
+    }
 }
 
 #[cfg(test)]

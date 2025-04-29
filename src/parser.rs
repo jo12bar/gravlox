@@ -238,10 +238,39 @@ impl Parser<'_> {
     /// Grammar:
     ///
     /// ```ignore
-    /// expression     → comma ;
+    /// expression     → assignment ;
     /// ```
     fn expression(&mut self, lox: &mut Lox) -> Result<Expr, ParserError> {
-        self.comma(lox)
+        self.assignment(lox)
+    }
+
+    #[allow(rustdoc::invalid_rust_codeblocks)]
+    /// Parse an assignment [expression][Expr].
+    ///
+    /// Grammar:
+    ///
+    /// ```ignore
+    /// assignment     → IDENTIFIER "=" assignment
+    ///                | comma ;
+    /// ```
+    fn assignment(&mut self, lox: &mut Lox) -> Result<Expr<'static>, ParserError> {
+        let expr = self.comma(lox)?.into_owned();
+
+        if self.match_tokens([TokenType::Equal]) {
+            let equals = self.previous().clone().into_owned();
+            let value = self.assignment(lox)?;
+
+            if let Expr::Var {name} = expr {
+                return Ok(Expr::Assign { name, value: Box::new(value) });
+            }
+
+            // we report an error if th eleft-hand side isn't a valid assignment target,
+            // but we don't throw it because the parser isn't in a confused
+            // state where we need to go into panic mode and synchronize.
+            lox.token_error(&equals, "Invalid assignment target.");
+        }
+
+        Ok(expr)
     }
 
     #[allow(rustdoc::invalid_rust_codeblocks)]

@@ -197,7 +197,9 @@ impl Parser<'_> {
     ///                | printStmt ;
     /// ```
     fn statement(&mut self, lox: &mut Lox) -> Result<Stmt<'_>, ParserError> {
-        if self.match_tokens([TokenType::If]) {
+        if self.match_tokens([TokenType::For]) {
+            self.for_statement(lox)
+        } else if self.match_tokens([TokenType::If]) {
             self.if_statement(lox)
         } else if self.match_tokens([TokenType::Print]) {
             self.print_statement(lox)
@@ -222,6 +224,71 @@ impl Parser<'_> {
         let value = self.expression(lox)?.into_owned();
         self.consume(TokenType::Semicolon, "Expect ';' after value.", lox)?;
         Ok(Stmt::Print(value))
+    }
+
+    #[allow(rustdoc::invalid_rust_codeblocks)]
+    /// Parse a for [statement][Stmt].
+    ///
+    /// Really just desugars into a `while` statement inside a block, with an
+    /// initializer before it, the exact same condition, and the increment
+    /// expression at the end of the loop body.
+    ///
+    /// Grammar:
+    ///
+    /// ```ignore
+    /// forStmt        → "for" "(" ( varDecl | exprStmt | ";" )
+    ///                  expression? ";"
+    ///                  expression? ")" statement ;
+    /// ```
+    fn for_statement(&mut self, lox: &mut Lox) -> Result<Stmt<'_>, ParserError> {
+        self.consume(TokenType::LeftParen, "Expect '(' after 'for'.", lox)?;
+
+        let initializer = if self.match_tokens([TokenType::Semicolon]) {
+            None
+        } else if self.match_tokens([TokenType::Var]) {
+            Some(self.var_declaration(lox)?.into_owned())
+        } else {
+            Some(self.expression_statement(lox)?.into_owned())
+        };
+
+        let condition = if !self.check(TokenType::Semicolon) {
+            Some(self.expression(lox)?.into_owned())
+        } else {
+            None
+        };
+
+        self.consume(TokenType::Semicolon, "Expect ';' after loop condition", lox)?;
+
+        let increment = if !self.check(TokenType::RightParen) {
+            Some(self.expression(lox)?.into_owned())
+        } else {
+            None
+        };
+
+        self.consume(TokenType::RightParen, "Expect ')' after for clauses.", lox)?;
+
+        let mut body = self.statement(lox)?.into_owned();
+
+        if let Some(increment) = increment {
+            body = Stmt::Block {
+                statements: vec![body, Stmt::Expression(increment)],
+            };
+        }
+
+        let condition = condition.unwrap_or(Expr::Literal(Some(Literal::Bool(true))));
+
+        body = Stmt::While {
+            condition,
+            body: Box::new(body),
+        };
+
+        if let Some(initializer) = initializer {
+            body = Stmt::Block {
+                statements: vec![initializer, body],
+            };
+        }
+
+        Ok(body)
     }
 
     #[allow(rustdoc::invalid_rust_codeblocks)]

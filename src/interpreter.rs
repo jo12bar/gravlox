@@ -62,7 +62,7 @@ impl fmt::Display for Value<'_> {
 
 #[derive(Debug, Default)]
 pub struct Interpreter {
-    environment: Environment,
+    environment: Box<Environment>,
 }
 
 impl Interpreter {
@@ -88,6 +88,32 @@ impl Interpreter {
 
     fn execute<'a, 'r: 'a>(&mut self, stmt: &'r Stmt<'a>) -> Result<(), RuntimeError> {
         stmt.walk_stmt(self)
+    }
+
+    fn execute_block<'a, 'r: 'a>(
+        &mut self,
+        statements: &'r [Stmt<'a>],
+        environment: Box<Environment>,
+    ) -> Result<(), RuntimeError> {
+        debug!("evaluating {} statements in block", statements.len());
+
+        self.environment = environment;
+
+        let mut res = Ok(());
+        for statement in statements {
+            if let Err(e) = self.execute(statement) {
+                res = Err(e);
+                break;
+            }
+        }
+
+        if let Some(previous) = self.environment.take_enclosing_environment() {
+            self.environment = previous;
+        }
+
+        debug!("done evaluating {} statements in block", statements.len());
+
+        res
     }
 
     fn evaluate<'a, 'r: 'a>(&mut self, expr: &'r Expr<'a>) -> Result<Value<'a>, RuntimeError> {
@@ -289,6 +315,21 @@ impl ast::StmtVisitor for Interpreter {
         };
 
         self.environment.define(name.lexeme(), value.into_owned());
+
+        Ok(())
+    }
+
+    fn visit_block_stmt<'a, 'r: 'a>(&mut self, block_stmt: &'r Stmt<'a>) -> Self::Ret<'a> {
+        let Stmt::Block { statements } = block_stmt else {
+            unreachable!("should always be a block statement");
+        };
+
+        let enclosing_environment = std::mem::take(&mut self.environment);
+
+        self.execute_block(
+            statements,
+            Box::new(Environment::new_enclosed_by(enclosing_environment)),
+        )?;
 
         Ok(())
     }

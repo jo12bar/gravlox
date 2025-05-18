@@ -1,0 +1,35 @@
+print "start in global scope";
+
+var a = "global a";
+var b = "global b";
+var c = "global c";
+
+print "entering outer scope";
+{
+    print "  now in outer scope";
+
+    var a = "outer a";
+    var b = "outer b";
+
+    print "  entering inner scope";
+    {
+        print "    now in inner scope";
+
+        var a = "inner a";
+        print "    " + a;
+        print "    " + b;
+        print "    " + c;
+
+        print "    exiting inner scope";
+    }
+    print "  back in outer scope";
+
+    print "  " + a;
+    print "  " + b;
+    print "  " + c;
+}
+print "back in global scope";
+
+print a;
+print b;
+print c;

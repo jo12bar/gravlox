@@ -47,6 +47,8 @@ pub trait StmtVisitor {
     fn visit_print_stmt<'a, 'r: 'a>(&mut self, print_stmt: &'r Stmt<'a>) -> Self::Ret<'a>;
     /// Visit a [`Stmt::Var`].
     fn visit_var_stmt<'a, 'r: 'a>(&mut self, var_stmt: &'r Stmt<'a>) -> Self::Ret<'a>;
+    /// Visit a [`Stmt::Block`].
+    fn visit_block_stmt<'a, 'r: 'a>(&mut self, block_stmt: &'r Stmt<'a>) -> Self::Ret<'a>;
 }
 
 /// Something that can be iterably visited by an [`ExprVisitor`].

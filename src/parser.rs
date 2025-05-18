@@ -199,7 +199,9 @@ impl Parser<'_> {
     fn statement(&mut self, lox: &mut Lox) -> Result<Stmt<'_>, ParserError> {
         if self.match_tokens([TokenType::Print]) {
             self.print_statement(lox)
-        } else {
+        } else if self.match_tokens([TokenType::LeftBrace]) {
+            self.block(lox).map(|statements| Stmt::Block { statements })
+        }else {
             self.expression_statement(lox)
         }
     }
@@ -216,6 +218,29 @@ impl Parser<'_> {
         let value = self.expression(lox)?.into_owned();
         self.consume(TokenType::Semicolon, "Expect ';' after value.", lox)?;
         Ok(Stmt::Print(value))
+    }
+
+    #[allow(rustdoc::invalid_rust_codeblocks)]
+    /// Parse a block [statement][Stmt].
+    ///
+    /// Grammar:
+    ///
+    /// ```ignore
+    /// block          → "{" declaration* "}" ;
+    /// ```
+    fn block(&mut self, lox: &mut Lox) -> Result<Vec<Stmt<'static>>, ParserError> {
+        let mut statements = vec![];
+
+        while !self.check(TokenType::RightBrace) && !self.is_at_end() {
+            // to help with error recovery, filter out all statements that resulted in an error while parsing
+            if let Some(stmt) = self.declaration(lox).map(|d| d.into_owned()) {
+                statements.push(stmt);
+            }
+        }
+
+        self.consume(TokenType::RightBrace, "Expect '}' after block.", lox)?;
+
+        Ok(statements)
     }
 
     #[allow(rustdoc::invalid_rust_codeblocks)]

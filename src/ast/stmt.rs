@@ -13,10 +13,12 @@ use super::{Expr, StmtVisitor, StmtWalkable};
 ///
 /// statement      → exprStmt
 ///                | printStmt ;
+///                | block ;
 ///
 /// exprStmt       → expression ";" ;
 /// printStmt      → "print" expression ";" ;
 /// varDecl        → "var" IDENTIFIER ( "=" expression )? ";" ;
+/// block          → "{" declaration* "}" ;
 /// ```
 #[derive(Debug, Clone)]
 pub enum Stmt<'a> {
@@ -26,6 +28,9 @@ pub enum Stmt<'a> {
         name: Token<'static>,
         initializer: Option<Expr<'static>>,
     },
+    Block {
+        statements: Vec<Stmt<'static>>,
+    },
 }
 
 impl Stmt<'_> {
@@ -34,6 +39,7 @@ impl Stmt<'_> {
             Stmt::Expression(e) => Stmt::Expression(e.into_owned()),
             Stmt::Print(e) => Stmt::Print(e.into_owned()),
             Stmt::Var { name, initializer } => Stmt::Var { name, initializer },
+            Stmt::Block { statements } => Stmt::Block { statements },
         }
     }
 }
@@ -47,6 +53,7 @@ impl<R> StmtWalkable<R> for Stmt<'_> {
             Stmt::Expression(..) => visitor.visit_expression_stmt(self),
             Stmt::Print(..) => visitor.visit_print_stmt(self),
             Stmt::Var { .. } => visitor.visit_var_stmt(self),
+            Stmt::Block { .. } => visitor.visit_block_stmt(self),
         }
     }
 }

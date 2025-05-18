@@ -43,6 +43,8 @@ pub trait StmtVisitor {
     /// Visit a [`Stmt::Expression`].
     fn visit_expression_stmt<'a, 'r: 'a>(&mut self, expression_stmt: &'r Stmt<'a>)
     -> Self::Ret<'a>;
+    /// Visit a [`Stmt::If`].
+    fn visit_if_stmt<'a, 'r: 'a>(&mut self, if_stmt: &'r Stmt<'a>) -> Self::Ret<'a>;
     /// Visit a [`Stmt::Print`].
     fn visit_print_stmt<'a, 'r: 'a>(&mut self, print_stmt: &'r Stmt<'a>) -> Self::Ret<'a>;
     /// Visit a [`Stmt::Var`].

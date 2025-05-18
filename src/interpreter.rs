@@ -40,6 +40,21 @@ impl Value<'_> {
             Value::String(s) => Value::String(s.into_owned().into()),
         }
     }
+
+    /// `false` and `nil` are falsey, and everything else is truthy.
+    ///
+    /// Note that `nil` is represented by the interpreter by `Box<()>`.
+    fn is_truthy(&self) -> bool {
+        if matches!(self, Value::Nil) {
+            return false;
+        }
+
+        if let Value::Bool(b) = self {
+            return *b;
+        }
+
+        true
+    }
 }
 
 impl fmt::Display for Value<'_> {
@@ -170,7 +185,7 @@ impl ast::ExprVisitor for Interpreter {
                 Ok(Value::Num(-right))
             }
 
-            TokenType::Bang => Ok(Value::Bool(!is_truthy(&right))),
+            TokenType::Bang => Ok(Value::Bool(!right.is_truthy())),
 
             typ => {
                 unreachable!("tried to evaluate invalid unary operator {typ:?}");
@@ -291,6 +306,25 @@ impl ast::StmtVisitor for Interpreter {
         Ok(())
     }
 
+    fn visit_if_stmt<'a, 'r: 'a>(&mut self, if_stmt: &'r Stmt<'a>) -> Self::Ret<'a> {
+        let Stmt::If {
+            condition,
+            then_branch,
+            else_branch,
+        } = if_stmt
+        else {
+            unreachable!("should always be an if statement");
+        };
+
+        if self.evaluate(condition)?.is_truthy() {
+            self.execute(then_branch)
+        } else if let Some(else_branch) = else_branch {
+            self.execute(else_branch)
+        } else {
+            Ok(())
+        }
+    }
+
     fn visit_print_stmt<'a, 'r: 'a>(&mut self, print_stmt: &'r Stmt<'a>) -> Self::Ret<'a> {
         let Stmt::Print(expression) = print_stmt else {
             unreachable!("should always be a print statement");
@@ -360,21 +394,6 @@ fn operands_as_2_nums(
     }
 }
 
-/// `false` and `nil` are falsey, and everything else is truthy.
-///
-/// Note that `nil` is represented by the interpreter by `Box<()>`.
-fn is_truthy(val: &Value<'_>) -> bool {
-    if matches!(val, Value::Nil) {
-        return false;
-    }
-
-    if let Value::Bool(b) = val {
-        return *b;
-    }
-
-    true
-}
-
 fn is_equal(a: &Value<'_>, b: &Value<'_>) -> bool {
     if matches!(a, Value::Nil) && matches!(b, Value::Nil) {
         return true;
@@ -405,27 +424,25 @@ mod tests {
 
     #[test]
     fn is_truthy_returns_false_for_nil() {
-        assert!(!is_truthy(&Value::Nil));
+        assert!(!Value::Nil.is_truthy());
     }
 
     #[test]
     fn is_truthy_returns_false_for_false() {
-        assert!(!is_truthy(&Value::Bool(false)));
+        assert!(!Value::Bool(false).is_truthy());
     }
 
     #[test]
     fn is_truthy_returns_true_for_true() {
-        assert!(is_truthy(&Value::Bool(true)));
+        assert!(Value::Bool(true).is_truthy());
     }
 
     #[test]
     fn is_truthy_returns_true_for_truethy_values() {
-        assert!(is_truthy(&Value::String(Cow::Borrowed("this is truthy"))));
-        assert!(is_truthy(&Value::String(Cow::Owned(
-            "so is this".to_string()
-        ))));
-        assert!(is_truthy(&Value::Num(-0.43)));
-        assert!(is_truthy(&Value::Num(0.0)));
+        assert!(Value::String(Cow::Borrowed("this is truthy")).is_truthy());
+        assert!(Value::String(Cow::Owned("so is this".to_string())).is_truthy());
+        assert!(Value::Num(-0.43).is_truthy());
+        assert!(Value::Num(0.0).is_truthy());
     }
 
     #[test]

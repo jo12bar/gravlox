@@ -197,11 +197,13 @@ impl Parser<'_> {
     ///                | printStmt ;
     /// ```
     fn statement(&mut self, lox: &mut Lox) -> Result<Stmt<'_>, ParserError> {
-        if self.match_tokens([TokenType::Print]) {
+        if self.match_tokens([TokenType::If]) {
+            self.if_statement(lox)
+        } else if self.match_tokens([TokenType::Print]) {
             self.print_statement(lox)
         } else if self.match_tokens([TokenType::LeftBrace]) {
             self.block(lox).map(|statements| Stmt::Block { statements })
-        }else {
+        } else {
             self.expression_statement(lox)
         }
     }
@@ -218,6 +220,34 @@ impl Parser<'_> {
         let value = self.expression(lox)?.into_owned();
         self.consume(TokenType::Semicolon, "Expect ';' after value.", lox)?;
         Ok(Stmt::Print(value))
+    }
+
+    #[allow(rustdoc::invalid_rust_codeblocks)]
+    /// Parse an if [statement][Stmt].
+    ///
+    /// Grammar:
+    ///
+    /// ```ignore
+    /// ifStmt         → "if" "(" expression ")" statement
+    ///                  ( "else" statement )? ;
+    /// ```
+    fn if_statement(&mut self, lox: &mut Lox) -> Result<Stmt<'static>, ParserError> {
+        self.consume(TokenType::LeftParen, "Expect '(' after 'if'.", lox)?;
+        let condition = self.expression(lox)?.into_owned();
+        self.consume(TokenType::RightParen, "Expect ')' after if condition.", lox)?;
+
+        let then_branch = self.statement(lox)?.into_owned();
+
+        let mut else_branch = None;
+        if self.match_tokens([TokenType::Else]) {
+            else_branch = Some(Box::new(self.statement(lox)?.into_owned()));
+        }
+
+        Ok(Stmt::If {
+            condition,
+            then_branch: Box::new(then_branch),
+            else_branch,
+        })
     }
 
     #[allow(rustdoc::invalid_rust_codeblocks)]
@@ -285,8 +315,11 @@ impl Parser<'_> {
             let equals = self.previous().clone().into_owned();
             let value = self.assignment(lox)?;
 
-            if let Expr::Var {name} = expr {
-                return Ok(Expr::Assign { name, value: Box::new(value) });
+            if let Expr::Var { name } = expr {
+                return Ok(Expr::Assign {
+                    name,
+                    value: Box::new(value),
+                });
             }
 
             // we report an error if th eleft-hand side isn't a valid assignment target,
@@ -470,7 +503,9 @@ impl Parser<'_> {
         }
 
         if self.match_tokens([TokenType::Identifier]) {
-            return Ok(Expr::Var { name: self.previous().clone() })
+            return Ok(Expr::Var {
+                name: self.previous().clone(),
+            });
         }
 
         if self.match_tokens([TokenType::LeftParen]) {

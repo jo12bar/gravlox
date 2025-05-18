@@ -363,6 +363,18 @@ impl ast::StmtVisitor for Interpreter {
         Ok(())
     }
 
+    fn visit_while_stmt<'a, 'r: 'a>(&mut self, while_stmt: &'r Stmt<'a>) -> Self::Ret<'a> {
+        let Stmt::While { condition, body } = while_stmt else {
+            unreachable!("should always be a while statement");
+        };
+
+        while self.evaluate(condition)?.is_truthy() {
+            self.execute(body)?;
+        }
+
+        Ok(())
+    }
+
     fn visit_var_stmt<'a, 'r: 'a>(&mut self, var_stmt: &'r Stmt<'a>) -> Self::Ret<'a> {
         let Stmt::Var { name, initializer } = var_stmt else {
             unreachable!("should always be a var statement");

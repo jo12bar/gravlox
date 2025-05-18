@@ -201,6 +201,8 @@ impl Parser<'_> {
             self.if_statement(lox)
         } else if self.match_tokens([TokenType::Print]) {
             self.print_statement(lox)
+        } else if self.match_tokens([TokenType::While]) {
+            self.while_statement(lox)
         } else if self.match_tokens([TokenType::LeftBrace]) {
             self.block(lox).map(|statements| Stmt::Block { statements })
         } else {
@@ -248,6 +250,24 @@ impl Parser<'_> {
             then_branch: Box::new(then_branch),
             else_branch,
         })
+    }
+
+    #[allow(rustdoc::invalid_rust_codeblocks)]
+    /// Parse a while [statement][Stmt].
+    ///
+    /// Grammar:
+    ///
+    /// ```ignore
+    /// whileStmt      → "while" "(" expression ")" statement ;
+    /// ```
+    fn while_statement(&mut self, lox: &mut Lox) -> Result<Stmt<'static>, ParserError> {
+        self.consume(TokenType::LeftParen, "Expect '(' after 'while'.", lox)?;
+        let condition = self.expression(lox)?.into_owned();
+        self.consume(TokenType::RightParen, "Expect ')' after condition.", lox)?;
+
+        let body = Box::new(self.statement(lox)?.into_owned());
+
+        Ok(Stmt::While { condition, body })
     }
 
     #[allow(rustdoc::invalid_rust_codeblocks)]

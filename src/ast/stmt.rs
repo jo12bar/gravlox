@@ -14,12 +14,14 @@ use super::{Expr, StmtVisitor, StmtWalkable};
 /// statement      → exprStmt
 ///                | ifStmt
 ///                | printStmt ;
+///                | whileStmt ;
 ///                | block ;
 ///
 /// exprStmt       → expression ";" ;
 /// ifStmt         → "if" "(" expression ")" statement
 ///                  ( "else" statement )? ;
 /// printStmt      → "print" expression ";" ;
+/// whileStmt      → "while" "(" expression ")" statement ;
 /// varDecl        → "var" IDENTIFIER ( "=" expression )? ";" ;
 /// block          → "{" declaration* "}" ;
 /// ```
@@ -32,6 +34,10 @@ pub enum Stmt<'a> {
         else_branch: Option<Box<Stmt<'static>>>,
     },
     Print(Expr<'a>),
+    While {
+        condition: Expr<'a>,
+        body: Box<Stmt<'static>>,
+    },
     Var {
         name: Token<'static>,
         initializer: Option<Expr<'static>>,
@@ -55,6 +61,10 @@ impl Stmt<'_> {
                 else_branch,
             },
             Stmt::Print(e) => Stmt::Print(e.into_owned()),
+            Stmt::While { condition, body } => Stmt::While {
+                condition: condition.into_owned(),
+                body,
+            },
             Stmt::Var { name, initializer } => Stmt::Var { name, initializer },
             Stmt::Block { statements } => Stmt::Block { statements },
         }
@@ -70,6 +80,7 @@ impl<R> StmtWalkable<R> for Stmt<'_> {
             Stmt::Expression(..) => visitor.visit_expression_stmt(self),
             Stmt::If { .. } => visitor.visit_if_stmt(self),
             Stmt::Print(..) => visitor.visit_print_stmt(self),
+            Stmt::While { .. } => visitor.visit_while_stmt(self),
             Stmt::Var { .. } => visitor.visit_var_stmt(self),
             Stmt::Block { .. } => visitor.visit_block_stmt(self),
         }

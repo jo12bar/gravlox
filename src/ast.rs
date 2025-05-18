@@ -49,6 +49,8 @@ pub trait StmtVisitor {
     fn visit_if_stmt<'a, 'r: 'a>(&mut self, if_stmt: &'r Stmt<'a>) -> Self::Ret<'a>;
     /// Visit a [`Stmt::Print`].
     fn visit_print_stmt<'a, 'r: 'a>(&mut self, print_stmt: &'r Stmt<'a>) -> Self::Ret<'a>;
+    /// Visit a [`Stmt::While`].
+    fn visit_while_stmt<'a, 'r: 'a>(&mut self, while_stmt: &'r Stmt<'a>) -> Self::Ret<'a>;
     /// Visit a [`Stmt::Var`].
     fn visit_var_stmt<'a, 'r: 'a>(&mut self, var_stmt: &'r Stmt<'a>) -> Self::Ret<'a>;
     /// Visit a [`Stmt::Block`].

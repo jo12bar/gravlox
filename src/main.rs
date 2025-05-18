@@ -11,6 +11,7 @@ mod token_type;
 
 use std::io::{Write, stdin, stdout};
 
+use ast::{Expr, Stmt};
 use interpreter::Interpreter;
 use scanner::Scanner;
 
@@ -149,7 +150,7 @@ impl Lox {
 
         let mut interpreter = Interpreter::new();
 
-        self.run(&script_content, &mut interpreter);
+        self.run(&script_content, &mut interpreter, false);
         if self.had_error {
             std::process::exit(65); // EX_DATAERR from sysexits.h
         }
@@ -168,7 +169,7 @@ impl Lox {
 
             match stdin().lines().next() {
                 Some(Ok(input)) => {
-                    self.run(&input, &mut interpreter);
+                    self.run(&input, &mut interpreter, true);
                     self.had_error = false;
                 }
                 Some(Err(readline_err)) => return Err(readline_err),
@@ -179,7 +180,7 @@ impl Lox {
         Ok(())
     }
 
-    fn run(&mut self, source: &str, interpreter: &mut Interpreter) {
+    fn run(&mut self, source: &str, interpreter: &mut Interpreter, is_repl: bool) {
         let mut scanner = Scanner::new(source);
 
         scanner.scan_tokens(self);
@@ -193,10 +194,24 @@ impl Lox {
             return;
         }
 
-        let statements = statements
+        let mut statements = statements
             .into_iter()
             .collect::<Option<Vec<_>>>()
             .expect("parser should report errors to the Lox interpreter properly so they can be detected and handled in a nice way");
+
+        // If this is the REPL, and a user inputs a single expression, then
+        // replace the Stmt::Expression with a Stmt::Print so the expression
+        // gets evaluated and printed.
+        if is_repl && statements.len() == 1 {
+            let repl_statement = &mut statements[0];
+            if matches!(repl_statement, Stmt::Expression(..)) {
+                let old = std::mem::replace(repl_statement, Stmt::Expression(Expr::Literal(None)));
+                let Stmt::Expression(expr) = old else {
+                    unreachable!();
+                };
+                *repl_statement = Stmt::Print(expr);
+            }
+        }
 
         interpreter.interpret(&statements, self);
     }

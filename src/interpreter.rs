@@ -272,6 +272,33 @@ impl ast::ExprVisitor for Interpreter {
         }
     }
 
+    fn visit_logical_expr<'a, 'r: 'a>(&mut self, logical_expr: &'r Expr<'a>) -> Self::Ret<'a> {
+        let Expr::Logical {
+            left,
+            operator,
+            right,
+        } = logical_expr
+        else {
+            unreachable!("should always be a logical expr");
+        };
+
+        let left = self.evaluate(left)?;
+
+        if operator.typ() == TokenType::Or {
+            // this is an or operator
+            if left.is_truthy() {
+                return Ok(left);
+            }
+        } else {
+            // this is an `and` operator (we assume, should never be anything else, right?!?)
+            if !left.is_truthy() {
+                return Ok(left);
+            }
+        }
+
+        self.evaluate(right)
+    }
+
     fn visit_var_expr<'a, 'r: 'a>(&mut self, var_expr: &'r Expr<'a>) -> Self::Ret<'a> {
         let Expr::Var { name } = var_expr else {
             unreachable!("should always be a var expression");

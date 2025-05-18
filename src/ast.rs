@@ -28,6 +28,8 @@ pub trait ExprVisitor {
     fn visit_unary_expr<'a, 'r: 'a>(&mut self, unary_expr: &'r Expr<'a>) -> Self::Ret<'a>;
     /// Visit a [`Expr::Binary`].
     fn visit_binary_expr<'a, 'r: 'a>(&mut self, binary_expr: &'r Expr<'a>) -> Self::Ret<'a>;
+    /// Visit a [`Expr::Logical`].
+    fn visit_logical_expr<'a, 'r: 'a>(&mut self, logical_expr: &'r Expr<'a>) -> Self::Ret<'a>;
     /// Visit a [`Expr::Var`].
     fn visit_var_expr<'a, 'r: 'a>(&mut self, var_expr: &'r Expr<'a>) -> Self::Ret<'a>;
     /// Visit a [`Expr::Assign`].

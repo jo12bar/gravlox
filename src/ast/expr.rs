@@ -11,7 +11,9 @@ use super::{ExprVisitor, ExprWalkable};
 /// expression     → assignment ;
 /// assignment     → IDENTIFIER "=" assignment
 ///                | comma ;
-/// comma          → equality ( "," equality )* ;
+/// comma          → logic_or ( "," logic_or )* ;
+/// logic_or       → logic_and ( "or" logic_and )* ;
+/// logic_and      → equality ( "and" equality )* ;
 /// equality       → comparison ( ( "!=" | "==" ) comparison )* ;
 /// comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
 /// term           → factor ( ( "-" | "+" ) factor )* ;
@@ -31,7 +33,15 @@ pub enum Expr<'a> {
         operator: Token<'a>,
         right: Box<Expr<'static>>,
     },
+    /// For binary operators like `+` or `/` or `<=`.
     Binary {
+        left: Box<Expr<'static>>,
+        operator: Token<'a>,
+        right: Box<Expr<'static>>,
+    },
+    /// For binary _logical_ operators like `and` or `or`. Separate from
+    /// [`Expr::Binary`] to make implementing short-circuiting easier.
+    Logical {
         left: Box<Expr<'static>>,
         operator: Token<'a>,
         right: Box<Expr<'static>>,
@@ -63,6 +73,15 @@ impl Expr<'_> {
                 operator: operator.into_owned(),
                 right,
             },
+            Expr::Logical {
+                left,
+                operator,
+                right,
+            } => Expr::Logical {
+                left,
+                operator: operator.into_owned(),
+                right,
+            },
             Expr::Var { name } => Expr::Var {
                 name: name.into_owned(),
             },
@@ -84,6 +103,7 @@ impl<R> ExprWalkable<R> for Expr<'_> {
             Expr::Literal(..) => visitor.visit_literal_expr(self),
             Expr::Unary { .. } => visitor.visit_unary_expr(self),
             Expr::Binary { .. } => visitor.visit_binary_expr(self),
+            Expr::Logical { .. } => visitor.visit_logical_expr(self),
             Expr::Var { .. } => visitor.visit_var_expr(self),
             Expr::Assign { .. } => visitor.visit_assign_expr(self),
         }

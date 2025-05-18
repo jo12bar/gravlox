@@ -322,7 +322,7 @@ impl Parser<'_> {
                 });
             }
 
-            // we report an error if th eleft-hand side isn't a valid assignment target,
+            // we report an error if the left-hand side isn't a valid assignment target,
             // but we don't throw it because the parser isn't in a confused
             // state where we need to go into panic mode and synchronize.
             lox.token_error(&equals, "Invalid assignment target.");
@@ -337,15 +337,63 @@ impl Parser<'_> {
     /// Grammar:
     ///
     /// ```ignore
-    /// comma          → equality ( "," equality )* ;
+    /// comma          → logic_or ( "," logic_or )* ;
     /// ```
     fn comma(&mut self, lox: &mut Lox) -> Result<Expr, ParserError> {
-        let mut expr = self.equality(lox)?.into_owned();
+        let mut expr = self.or(lox)?.into_owned();
 
         while self.match_tokens([TokenType::Comma]) {
             let operator = self.previous().clone().into_owned();
-            let right = self.equality(lox)?.into_owned();
+            let right = self.or(lox)?.into_owned();
             expr = Expr::Binary {
+                left: Box::new(expr),
+                operator,
+                right: Box::new(right),
+            };
+        }
+
+        Ok(expr)
+    }
+
+    #[allow(rustdoc::invalid_rust_codeblocks)]
+    /// Parse a logical `or` [expression][Expr].
+    ///
+    /// Grammar:
+    ///
+    /// ```ignore
+    /// logic_or       → logic_and ( "or" logic_and )* ;
+    /// ```
+    fn or(&mut self, lox: &mut Lox) -> Result<Expr, ParserError> {
+        let mut expr = self.and(lox)?.into_owned();
+
+        while self.match_tokens([TokenType::Or]) {
+            let operator = self.previous().clone().into_owned();
+            let right = self.and(lox)?.into_owned();
+            expr = Expr::Logical {
+                left: Box::new(expr),
+                operator,
+                right: Box::new(right),
+            };
+        }
+
+        Ok(expr)
+    }
+
+    #[allow(rustdoc::invalid_rust_codeblocks)]
+    /// Parse a logical `and` [expression][Expr].
+    ///
+    /// Grammar:
+    ///
+    /// ```ignore
+    /// logic_and      → equality ( "and" equality )* ;
+    /// ```
+    fn and(&mut self, lox: &mut Lox) -> Result<Expr, ParserError> {
+        let mut expr = self.equality(lox)?.into_owned();
+
+        while self.match_tokens([TokenType::And]) {
+            let operator = self.previous().clone().into_owned();
+            let right = self.equality(lox)?.into_owned();
+            expr = Expr::Logical {
                 left: Box::new(expr),
                 operator,
                 right: Box::new(right),
